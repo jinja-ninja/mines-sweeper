@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/app.css">
+    <title>Mine Sweeper</title>
+</head>
+
+<body onload="onInit()">
+    <h1>Mine Sweeper</h1>
+    <div class="levels">
+        <button class="level-choice" onclick="chooseLevel(4,2)">Beginner</button>
+        <button class="level-choice" onclick="chooseLevel(8,14)">Medium</button>
+        <button class="level-choice" onclick="chooseLevel(12,32)">Expert</button>
+    </div>
+    <div class="board-container"></div>
+
+    <div class="modal">
+        <h2><span></span></h2>
+        <button onclick="onInit()">Restart</button>
+    </div>
+
+    <footer>by Nati Feldbaum</footer>
+    <script src="js/game.js"></script>
+    <script src="js/utils.js"></script>
+</body>
+
+</html>
