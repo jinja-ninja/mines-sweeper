@@ -10,17 +10,18 @@
 
 <body onload="onInit()">
     <h1>Mine Sweeper</h1>
+
+    <h2><span class="game-indicator" onclick="onInit()"></span> Lives: <span class="lives"></span></h2>
+    <h2>Hints: <span class="hints hint-1" onclick="handleHints(this)">💡</span><span class="hints hint-2"
+            onclick="handleHints(this)">💡</span><span class="hints hint-3" onclick="handleHints(this)">💡</span></h2>
+
     <div class="levels">
         <button class="level-choice" onclick="chooseLevel(4,2)">Beginner</button>
         <button class="level-choice" onclick="chooseLevel(8,14)">Medium</button>
         <button class="level-choice" onclick="chooseLevel(12,32)">Expert</button>
     </div>
-    <div class="board-container"></div>
 
-    <div class="modal">
-        <h2><span></span></h2>
-        <button onclick="onInit()">Restart</button>
-    </div>
+    <div class="board-container"></div>
 
     <footer>by Nati Feldbaum</footer>
     <script src="js/game.js"></script>
