@@ -13,6 +13,7 @@ var gBoard
 var gIsDark = true
 var gScore = localStorage.getItem("score")
 var gMines = []
+var mementos = []
 var gMegaHintEdges = []
 var gUserPositionedMines = []
 
@@ -30,7 +31,6 @@ var gGame = {
     secsPassed: 0,
     lives: 3,
     safeClicks: 3,
-
 }
 
 var gMineHitInterval
@@ -39,16 +39,8 @@ var gMinePlacedInterval
 
 function onInit() {
     resetGameStats()
-
     gBoard = createBoard(gLevel.SIZE)
-
-    renderHints()
-    renderSafeClicksCount()
-    renderLives()
-    renderScore()
-    renderGameIndicator(GAME_MODE_NORMAL)
-    renderBoard(gBoard, '.board-container')
-
+    renderAll()
     console.table(gBoard)
 }
 
@@ -319,6 +311,21 @@ function onShowSafeClicks() {
     renderSafeClicksCount()
 }
 
+function onExterminatorClick() { // It should be noted that after conversation with Tal - we decided that the best way is to only update the cells that changed and not the whole board
+    if (!gGame.shownCount) return
+    var count = 0
+    while ((gMines.length > 0) && (count < 3)) {
+        var cellIdx = getRandomInt(0, gMines.length)
+        var cell = gMines[cellIdx]
+        gBoard[cell.i][cell.j].isMine = false
+        gMines.splice(cellIdx, 1)
+        gLevel.MINES--
+        setMinesNegsCount(gBoard)
+        count++
+        console.log('gMines:', gMines)
+    }
+}
+
 function onToggleDarkMode() {
     const elVars = document.querySelector(':root')
     if (gIsDark) {
@@ -376,6 +383,15 @@ function renderScore() {
     document.querySelector('.score').innerText = localStorage.getItem("score")
 }
 
+function renderAll() {
+    renderHints()
+    renderSafeClicksCount()
+    renderLives()
+    renderScore()
+    renderGameIndicator(GAME_MODE_NORMAL)
+    renderBoard(gBoard, '.board-container')
+}
+
 function updateScore() {
     if (gGame.shownCount > +localStorage.getItem("score")) {
         localStorage.setItem("score", gGame.shownCount)
@@ -383,17 +399,12 @@ function updateScore() {
     }
 }
 
-function onExterminatorClick() { // It should be noted that after conversation with Tal - we decided that the best way is to only update the cells that changed and not the whole board
-    if (!gGame.shownCount) return
-    var count = 0
-    while ((gMines.length > 0) && (count < 3)) {
-        var cellIdx = getRandomInt(0, gMines.length)
-        var cell = gMines[cellIdx]
-        gBoard[cell.i][cell.j].isMine = false
-        gMines.splice(cellIdx, 1)
-        gLevel.MINES--
-        setMinesNegsCount(gBoard)
-        count++
-        console.log('gMines:', gMines)
-    }
+function saveMemento(item) {
+    console.log(`'Hi - I have mementos but i'm not working :(`)
+    mementos.push(item)
+}
+
+function undo() {
+    const lastMemento = mementos.pop()
+    renderAll() // input: items?
 }
