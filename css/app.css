@@ -82,3 +82,7 @@ button {
 button:hover {
     box-shadow: inset 400px 0 0 0 red;
 }
+
+.cursor-pointer {
+    cursor: pointer;
+}

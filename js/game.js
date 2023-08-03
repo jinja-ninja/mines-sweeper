@@ -6,11 +6,16 @@ const FLAG = `🏴‍☠️`
 const GAME_MODE_NORMAL = '😄'
 const GAME_MODE_INTERFERED = '😵'
 const GAME_MODE_WIN = '😎'
+const HINT = '💡'
+const HINT_USED = '❌'
 
 var gBoard
 var gIsDark = true
 var gScore = localStorage.getItem("score")
 var gMines = []
+var gMegaHintEdges = []
+var gUserPositionedMines = []
+
 const gLevel = {
     SIZE: 4,
     MINES: 2
@@ -18,6 +23,7 @@ const gLevel = {
 var gGame = {
     isOn: false,
     isHintMode: false,
+    isMegaHintMode: false,
     isManualMode: false,
     shownCount: 0,
     markedCount: 0,
@@ -31,10 +37,10 @@ var gSafeClickInterval
 
 function onInit() {
     resetGameStats()
-    // gGame.isOn = true
 
     gBoard = createBoard(gLevel.SIZE)
 
+    renderHints()
     renderSafeClicksCount()
     renderLives()
     renderScore()
@@ -54,23 +60,54 @@ function setMinesNegsCount(board) {
 
 function onCellClicked(elCell, i, j) {
     if (!gGame.isOn) return
-    if (gBoard[i][j].isShown) return
-    if (gBoard[i][j].isMarked) return
+    if (gBoard[i][j].isShown && !gGame.isHintMode) return
+    if (gBoard[i][j].isMarked && !gGame.isHintMode) return
 
-    // var cells = []
+    if (gGame.isHintMode) { // Not handeling the case for first click
+        flashCells(i, j)  //Should solve with revealNegs and not different function
+        setTimeout(flashCells, 1000, i, j)
+        gGame.isHintMode = false
+        return
+    }
+
+    if (gGame.isManualMode) {
+        gLevel.MINES++
+        gMines.push({ i, j })
+        gBoard[i][j].isMine = true
+        return
+    }
+
     if (!gGame.shownCount) {
-        // if (gGame.isManualMode) {
-        //     gMines.push({ i, j })
-        //     return
-        // } else if (!gMines) {
-
-        const cells = getEmptyCells()
-        for (var cell = 0; cell < cells.length; cell++) {
-            if (cells[cell].i === i && cells[cell].j === j) cells.splice(cell, 1)
+        console.log('gMines:', gMines)
+        if (gMines.length === 0) {
+            const cells = getEmptyCells()
+            for (var cell = 0; cell < cells.length; cell++) {
+                if (cells[cell].i === i && cells[cell].j === j) cells.splice(cell, 1)
+            }
+            placeMines(cells)
         }
-        // }
-        placeMines(cells)
         setMinesNegsCount(gBoard)
+    }
+
+    if (gGame.isMegaHintMode) {
+        if (gMegaHintEdges.length === 2) {
+            return
+        }
+        if (gMegaHintEdges.length === 1) {
+            if (gMegaHintEdges[0].i > i || gMegaHintEdges[0].j > j) return
+            else {
+                gMegaHintEdges.push({ i, j })
+                gGame.isMegaHintMode = false
+                const elCells = document.querySelectorAll('.cell')
+                for (var i = 0; i < elCells.length; i++) {
+                    elCells[i].classList.toggle('cursor-pointer')
+                }
+                flashMegaHint()
+                return
+            }
+        }
+        gMegaHintEdges.push({ i, j })
+        return
     }
 
     if (!gBoard[i][j].isMine) {
@@ -93,6 +130,7 @@ function onCellClicked(elCell, i, j) {
     }
 }
 function revealNegs(elCell, rowIdx, colIdx) {
+    // if (gGame.isHintMode) flashCell(elCell,rowIdx,colIdx) // Use this if ever decide to use one function for all
     revealCell(elCell, rowIdx, colIdx)
 
     for (var i = rowIdx - 1; i <= rowIdx + 1; i++) {
@@ -133,7 +171,47 @@ function revealCell(elCell, i, j) {
     }
 }
 
+function flashMegaHint() {
+
+    for (var i = gMegaHintEdges[0].i; i <= gMegaHintEdges[1].i; i++) {
+        console.log('i:', i)
+        for (var j = gMegaHintEdges[0].j; j <= gMegaHintEdges[1].j; j++) {
+
+            const selector = `.cell-${i}-${j}`
+            const elCell = document.querySelector(selector)
+            flashCell(elCell, i, j)
+            setTimeout(flashCell, 1000, elCell, i, j)
+        }
+    }
+}
+
+function flashCells(rowIdx, colIdx) {
+    for (var i = rowIdx - 1; i <= rowIdx + 1; i++) {
+        if (i < 0 || i >= gBoard.length) continue
+        for (var j = colIdx - 1; j <= colIdx + 1; j++) {
+            if (j < 0 || j >= gBoard[0].length) continue
+            if (gBoard[i][j].isMarked || gBoard[i][j].isShown) continue
+
+            const nextCellSelector = `.cell-${i}-${j}`
+            const elNeighborCell = document.querySelector(nextCellSelector)
+            flashCell(elNeighborCell, i, j)
+        }
+    }
+}
+
+function flashCell(elCell, i, j) {
+    if (!elCell.innerText) {
+        if (gBoard[i][j].isMine) elCell.innerText = MINE
+        else elCell.innerText = gBoard[i][j].minesAroundCount
+    } else {
+        elCell.innerText = ''
+    }
+    elCell.classList.toggle('hidden-cell')
+
+}
+
 function placeFlag(elCell, i, j) {
+    if (!gGame.isOn) return
     if (!gBoard[i][j].isMarked) {
         gBoard[i][j].isMarked = true
         gGame.markedCount++
@@ -150,6 +228,7 @@ function placeMines(cells) {
     for (var i = gLevel.MINES; i > 0; i--) {
         const cell = cells[getRandomInt(0, cells.length)]
         cells.pop(cell)
+
         gBoard[cell.i][cell.j].isMine = true
         gMines.push({ i: cell.i, j: cell.j })
     }
@@ -166,16 +245,11 @@ function gameOver() {
     gGame.isOn = false
 }
 
-function chooseLevel(size, mines) {
-    gLevel.SIZE = size
-    gLevel.MINES = mines
-    onInit()
-}
-
 function resetGameStats() {
     gGame = {
         isOn: true,
         isHintMode: false,
+        isMegaHintMode: false,
         isManualMode: false,
         shownCount: 0,
         markedCount: 0,
@@ -184,25 +258,72 @@ function resetGameStats() {
         safeClicks: 3
     }
     gMines = []
+    gMegaHintEdges = []
 }
 
-function toggleManualMode() {
+function onToggleManualMode() {
     gGame.isManualMode = gGame.isManualMode ? false : true
+    if (gGame.isManualMode) gLevel.MINES = 0
     console.log('gGame.isManualMode:', gGame.isManualMode)
 }
 
-// function updateMinesManually() {
-//     var cells = []
-//     while (gGame.isManualMode) {
+function onChooseLevel(size, mines) {
+    gLevel.SIZE = size
+    gLevel.MINES = mines
+    onInit()
+}
 
-//     }
-// }
-
-function handleHints(elHint) {
-    // To Be Completed
+function onHintClicked(elHint) {
+    if (elHint.style.cursor === 'not allowed') return
+    if (gGame.isHintMode) return
     gGame.isHintMode = true
-    elHint.innerText = '❌'
+    elHint.innerText = HINT_USED
     elHint.style.cursor = 'not-allowed'
+}
+
+function onMegaHintClicked() {
+    if (!gGame.isOn) return
+    if (!gGame.isMegaHintMode && gMegaHintEdges.length === 2) return
+
+    const elCells = document.querySelectorAll('.cell')
+    for (var i = 0; i < elCells.length; i++) {
+        elCells[i].classList.toggle('cursor-pointer')
+    }
+    gGame.isMegaHintMode = true
+}
+
+function onShowSafeClicks() {
+    if (!gGame.isOn) return
+    if (!gGame.safeClicks) return
+    const cells = getEmptyCells()
+    const cell = cells[getRandomInt(0, cells.length)]
+    const selector = '.cell-' + cell.i + '-' + cell.j
+    const elCell = document.querySelector(selector)
+
+    gSafeClickInterval = setInterval(changeCellColor, 100, elCell, true)
+    setTimeout(clearInterval, 600, gSafeClickInterval)
+    gGame.safeClicks--
+    renderSafeClicksCount()
+}
+
+function onToggleDarkMode() {
+    const elVars = document.querySelector(':root')
+    if (gIsDark) {
+        elVars.style.setProperty('--main-color', 'white')
+        elVars.style.setProperty('--secondary-color', 'black')
+    } else {
+        elVars.style.setProperty('--main-color', 'black')
+        elVars.style.setProperty('--secondary-color', 'white')
+    }
+    gIsDark = !gIsDark
+}
+
+function renderHints() {
+    const elHints = document.querySelectorAll('.hints')
+    for (var i = 0; i < elHints.length; i++) {
+        elHints[i].innerText = HINT
+        elHints[i].style.cursor = 'pointer'
+    }
 }
 
 function renderLives() {
@@ -231,20 +352,6 @@ function changeCellColor(elCell, isHint) {
     else elCell.classList.toggle('hit-mine')
 }
 
-function showSafeClicks() {
-    if (!gGame.isOn) return
-    if (!gGame.safeClicks) return
-    const cells = getEmptyCells()
-    const cell = cells[getRandomInt(0, cells.length)]
-    const selector = '.cell-' + cell.i + '-' + cell.j
-    const elCell = document.querySelector(selector)
-
-    gSafeClickInterval = setInterval(changeCellColor, 100, elCell, true)
-    setTimeout(clearInterval, 600, gSafeClickInterval)
-    gGame.safeClicks--
-    renderSafeClicksCount()
-}
-
 function renderScore() {
     document.querySelector('.score').innerText = localStorage.getItem("score")
 }
@@ -256,14 +363,3 @@ function updateScore() {
     }
 }
 
-function toggleDarkMode() {
-    const elVars = document.querySelector(':root')
-    if (gIsDark) {
-        elVars.style.setProperty('--main-color', 'white')
-        elVars.style.setProperty('--secondary-color', 'black')
-    } else {
-        elVars.style.setProperty('--main-color', 'black')
-        elVars.style.setProperty('--secondary-color', 'white')
-    }
-    gIsDark = !gIsDark
-}
