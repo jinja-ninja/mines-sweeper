@@ -8,6 +8,7 @@ const GAME_MODE_INTERFERED = '😵'
 const GAME_MODE_WIN = '😎'
 
 var gBoard
+var gIsDark = true
 var gScore = localStorage.getItem("score")
 var gMines = []
 const gLevel = {
@@ -253,4 +254,16 @@ function updateScore() {
         localStorage.setItem("score", gGame.shownCount)
         renderScore()
     }
+}
+
+function toggleDarkMode() {
+    const elVars = document.querySelector(':root')
+    if (gIsDark) {
+        elVars.style.setProperty('--main-color', 'white')
+        elVars.style.setProperty('--secondary-color', 'black')
+    } else {
+        elVars.style.setProperty('--main-color', 'black')
+        elVars.style.setProperty('--secondary-color', 'white')
+    }
+    gIsDark = !gIsDark
 }
