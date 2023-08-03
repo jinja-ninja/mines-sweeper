@@ -8,6 +8,7 @@ const GAME_MODE_INTERFERED = '😵'
 const GAME_MODE_WIN = '😎'
 
 var gBoard
+var gScore = localStorage.getItem("score")
 var gMines = []
 const gLevel = {
     SIZE: 4,
@@ -16,22 +17,26 @@ const gLevel = {
 var gGame = {
     isOn: false,
     isHintMode: false,
+    isManualMode: false,
     shownCount: 0,
     markedCount: 0,
     secsPassed: 0,
-    lives: 3
+    lives: 3,
+    safeClicks: 3
 }
 
 var gMineHitInterval
+var gSafeClickInterval
 
 function onInit() {
     resetGameStats()
-    gGame.isOn = true
+    // gGame.isOn = true
 
     gBoard = createBoard(gLevel.SIZE)
 
+    renderSafeClicksCount()
     renderLives()
-    // renderHints()
+    renderScore()
     renderGameIndicator(GAME_MODE_NORMAL)
     renderBoard(gBoard, '.board-container')
 
@@ -51,11 +56,18 @@ function onCellClicked(elCell, i, j) {
     if (gBoard[i][j].isShown) return
     if (gBoard[i][j].isMarked) return
 
+    // var cells = []
     if (!gGame.shownCount) {
+        // if (gGame.isManualMode) {
+        //     gMines.push({ i, j })
+        //     return
+        // } else if (!gMines) {
+
         const cells = getEmptyCells()
         for (var cell = 0; cell < cells.length; cell++) {
             if (cells[cell].i === i && cells[cell].j === j) cells.splice(cell, 1)
         }
+        // }
         placeMines(cells)
         setMinesNegsCount(gBoard)
     }
@@ -65,6 +77,7 @@ function onCellClicked(elCell, i, j) {
         else {
             revealNegs(elCell, i, j)
         }
+        updateScore()
         checkVictory()
     }
     else if (gGame.lives > 1) {
@@ -142,7 +155,7 @@ function placeMines(cells) {
 }
 
 function checkVictory() {
-    if (gGame.shownCount + gGame.markedCount === gLevel.SIZE ** 2) { // Not Good winning indicator
+    if ((gGame.shownCount + gGame.markedCount === gLevel.SIZE ** 2) && gGame.markedCount === gLevel.MINES) {
         renderGameIndicator(GAME_MODE_WIN)
         gameOver()
     }
@@ -160,15 +173,29 @@ function chooseLevel(size, mines) {
 
 function resetGameStats() {
     gGame = {
-        isOn: false,
+        isOn: true,
         isHintMode: false,
+        isManualMode: false,
         shownCount: 0,
         markedCount: 0,
         secsPassed: 0,
-        lives: 3
+        lives: 3,
+        safeClicks: 3
     }
     gMines = []
 }
+
+function toggleManualMode() {
+    gGame.isManualMode = gGame.isManualMode ? false : true
+    console.log('gGame.isManualMode:', gGame.isManualMode)
+}
+
+// function updateMinesManually() {
+//     var cells = []
+//     while (gGame.isManualMode) {
+
+//     }
+// }
 
 function handleHints(elHint) {
     // To Be Completed
@@ -189,11 +216,41 @@ function renderGameIndicator(gameMode) {
     elContainer.innerHTML = strHTML
 }
 
+function renderSafeClicksCount() {
+    document.querySelector('.safe-click span').innerText = gGame.safeClicks
+}
+
 function mineHitIndication(elCell) {
-    gMineHitInterval = setInterval(changeCellColor, 100, elCell)
+    gMineHitInterval = setInterval(changeCellColor, 100, elCell, false)
     setTimeout(clearInterval, 600, gMineHitInterval)
 }
 
-function changeCellColor(elCell) {
-    elCell.classList.toggle('hit-mine')
+function changeCellColor(elCell, isHint) {
+    if (isHint) elCell.classList.toggle('hint-flicker')
+    else elCell.classList.toggle('hit-mine')
+}
+
+function showSafeClicks() {
+    if (!gGame.isOn) return
+    if (!gGame.safeClicks) return
+    const cells = getEmptyCells()
+    const cell = cells[getRandomInt(0, cells.length)]
+    const selector = '.cell-' + cell.i + '-' + cell.j
+    const elCell = document.querySelector(selector)
+
+    gSafeClickInterval = setInterval(changeCellColor, 100, elCell, true)
+    setTimeout(clearInterval, 600, gSafeClickInterval)
+    gGame.safeClicks--
+    renderSafeClicksCount()
+}
+
+function renderScore() {
+    document.querySelector('.score').innerText = localStorage.getItem("score")
+}
+
+function updateScore() {
+    if (gGame.shownCount > +localStorage.getItem("score")) {
+        localStorage.setItem("score", gGame.shownCount)
+        renderScore()
+    }
 }

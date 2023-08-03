@@ -12,8 +12,21 @@
     <h1>Mine Sweeper</h1>
 
     <h2><span class="game-indicator" onclick="onInit()"></span> Lives: <span class="lives"></span></h2>
-    <h2>Hints: <span class="hints hint-1" onclick="handleHints(this)">💡</span><span class="hints hint-2"
-            onclick="handleHints(this)">💡</span><span class="hints hint-3" onclick="handleHints(this)">💡</span></h2>
+    <h2>Best score: <span class="score"></span> Hints: <span class="hints hint-1"
+            onclick="handleHints(this)">💡</span><span class="hints hint-2" onclick="handleHints(this)">💡</span><span
+            class="hints hint-3" onclick="handleHints(this)">💡</span></h2>
+
+    <div class="game-modes-1">
+        <button class="safe-click" onclick="showSafeClicks()">Safe Click (<span></span>)</button>
+        <button class="manual-mode" onclick="toggleManualMode()">Manual Mode</button>
+        <button class="undo-button" onclick="">Undo</button>
+    </div>
+
+    <div class="game-modes-2">
+        <button class="dark-mode" onclick="">Dark Mode</button>
+        <button class="mega=hint" onclick="">Mega Hint</button>
+        <button class="mine-exterminator" onclick="">Mine Exterminator</button>
+    </div>
 
     <div class="levels">
         <button class="level-choice" onclick="chooseLevel(4,2)">Beginner</button>

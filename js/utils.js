@@ -159,7 +159,7 @@ function getEmptyCells() {
 
   for (var i = 0; i < gBoard.length; i++) {
     for (var j = 0; j < gBoard[0].length; j++) {
-      if (!gBoard[i][j].isMine) res.push({ i, j })
+      if (!gBoard[i][j].isMine && !gBoard[i][j].isShown) res.push({ i, j })
     }
   }
   return res
