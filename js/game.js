@@ -29,11 +29,13 @@ var gGame = {
     markedCount: 0,
     secsPassed: 0,
     lives: 3,
-    safeClicks: 3
+    safeClicks: 3,
+
 }
 
 var gMineHitInterval
 var gSafeClickInterval
+var gMinePlacedInterval
 
 function onInit() {
     resetGameStats()
@@ -74,6 +76,7 @@ function onCellClicked(elCell, i, j) {
         gLevel.MINES++
         gMines.push({ i, j })
         gBoard[i][j].isMine = true
+        minePlacedIndication(elCell)
         return
     }
 
@@ -166,7 +169,8 @@ function revealCell(elCell, i, j) {
     gBoard[i][j].isShown = true
     elCell.classList.remove('hidden-cell')
     if (!gBoard[i][j].isMine) {
-        elCell.innerText = gBoard[i][j].minesAroundCount
+        if (gBoard[i][j].minesAroundCount === 0) elCell.innerText = ''
+        else elCell.innerText = gBoard[i][j].minesAroundCount
         gGame.shownCount++
     }
 }
@@ -200,9 +204,14 @@ function flashCells(rowIdx, colIdx) {
 }
 
 function flashCell(elCell, i, j) {
+
     if (!elCell.innerText) {
         if (gBoard[i][j].isMine) elCell.innerText = MINE
         else elCell.innerText = gBoard[i][j].minesAroundCount
+
+        // } else if (elCell.innerText === FLAG) { // Bug when FLAG & Mega hint
+        //     if (gBoard[i][j].isMine) elCell.innerText = MINE
+        //     else elCell.innerText = gBoard[i][j].minesAroundCount
     } else {
         elCell.innerText = ''
     }
@@ -215,6 +224,7 @@ function placeFlag(elCell, i, j) {
     if (!gBoard[i][j].isMarked) {
         gBoard[i][j].isMarked = true
         gGame.markedCount++
+        console.log(gGame.markedCount)
         elCell.innerText = FLAG
         checkVictory()
     } else {
@@ -235,6 +245,9 @@ function placeMines(cells) {
 }
 
 function checkVictory() {
+    console.log('gGame.shownCount:', gGame.shownCount)
+    console.log('gGame.markedCount:', gGame.markedCount)
+    console.log('gLevel.MINES:', gLevel.MINES)
     if ((gGame.shownCount + gGame.markedCount === gLevel.SIZE ** 2) && gGame.markedCount === gLevel.MINES) {
         renderGameIndicator(GAME_MODE_WIN)
         gameOver()
@@ -347,6 +360,13 @@ function mineHitIndication(elCell) {
     setTimeout(clearInterval, 600, gMineHitInterval)
 }
 
+function minePlacedIndication(elCell) {
+    gMinePlacedInterval = setInterval(() => {
+        elCell.innerText = (elCell.innerText === EMPTY) ? FLAG : EMPTY
+    }, 100)
+    setTimeout(clearInterval, 600, gMinePlacedInterval)
+}
+
 function changeCellColor(elCell, isHint) {
     if (isHint) elCell.classList.toggle('hint-flicker')
     else elCell.classList.toggle('hit-mine')
@@ -363,3 +383,17 @@ function updateScore() {
     }
 }
 
+function onExterminatorClick() { // It should be noted that after conversation with Tal - we decided that the best way is to only update the cells that changed and not the whole board
+    if (!gGame.shownCount) return
+    var count = 0
+    while ((gMines.length > 0) && (count < 3)) {
+        var cellIdx = getRandomInt(0, gMines.length)
+        var cell = gMines[cellIdx]
+        gBoard[cell.i][cell.j].isMine = false
+        gMines.splice(cellIdx, 1)
+        gLevel.MINES--
+        setMinesNegsCount(gBoard)
+        count++
+        console.log('gMines:', gMines)
+    }
+}
