@@ -36,6 +36,7 @@ var gGame = {
 var gMineHitInterval
 var gSafeClickInterval
 var gMinePlacedInterval
+var gGameTimerInterval
 
 function onInit() {
     resetGameStats()
@@ -54,17 +55,10 @@ function setMinesNegsCount(board) {
 
 function onCellClicked(elCell, i, j) {
     if (!gGame.isOn) return
-    if (gBoard[i][j].isShown && !gGame.isHintMode) return
-    if (gBoard[i][j].isMarked && !gGame.isHintMode) return
+    if (gBoard[i][j].isShown && !gGame.isHintMode && !gGame.isMegaHintMode) return
+    if (gBoard[i][j].isMarked && !gGame.isHintMode && !gGame.isMegaHintMode) return
 
-    if (gGame.isHintMode) { // Not handeling the case for first click
-        flashCells(i, j)  //Should solve with revealNegs and not different function
-        setTimeout(flashCells, 1000, i, j)
-        gGame.isHintMode = false
-        return
-    }
-
-    if (gGame.isManualMode) {
+    if (gGame.isManualMode && !gGame.shownCount) {
         gLevel.MINES++
         gMines.push({ i, j })
         gBoard[i][j].isMine = true
@@ -73,7 +67,6 @@ function onCellClicked(elCell, i, j) {
     }
 
     if (!gGame.shownCount) {
-        console.log('gMines:', gMines)
         if (gMines.length === 0) {
             const cells = getEmptyCells()
             for (var cell = 0; cell < cells.length; cell++) {
@@ -82,6 +75,14 @@ function onCellClicked(elCell, i, j) {
             placeMines(cells)
         }
         setMinesNegsCount(gBoard)
+        if (!gGame.secsPassed) startTimer()
+    }
+
+    if (gGame.isHintMode) { // Not handeling the case for first click
+        flashCells(i, j)  //Should solve with revealNegs and not different function
+        setTimeout(flashCells, 1000, i, j)
+        gGame.isHintMode = false
+        return
     }
 
     if (gGame.isMegaHintMode) {
@@ -121,7 +122,7 @@ function onCellClicked(elCell, i, j) {
     }
     else {
         revealAllMines()
-        gameOver()
+        gameOver(false)
     }
 }
 function revealNegs(elCell, rowIdx, colIdx) {
@@ -170,8 +171,8 @@ function revealCell(elCell, i, j) {
 function flashMegaHint() {
 
     for (var i = gMegaHintEdges[0].i; i <= gMegaHintEdges[1].i; i++) {
-        console.log('i:', i)
         for (var j = gMegaHintEdges[0].j; j <= gMegaHintEdges[1].j; j++) {
+            if (gBoard[i][j].isShown) continue
 
             const selector = `.cell-${i}-${j}`
             const elCell = document.querySelector(selector)
@@ -197,14 +198,15 @@ function flashCells(rowIdx, colIdx) {
 
 function flashCell(elCell, i, j) {
 
-    if (!elCell.innerText) {
+    if (!elCell.innerText || elCell.innerText === FLAG) {
         if (gBoard[i][j].isMine) elCell.innerText = MINE
         else elCell.innerText = gBoard[i][j].minesAroundCount
 
         // } else if (elCell.innerText === FLAG) { // Bug when FLAG & Mega hint
         //     if (gBoard[i][j].isMine) elCell.innerText = MINE
         //     else elCell.innerText = gBoard[i][j].minesAroundCount
-    } else {
+    } else if (gBoard[i][j].isMarked) elCell.innerText = FLAG
+    else {
         elCell.innerText = ''
     }
     elCell.classList.toggle('hidden-cell')
@@ -213,23 +215,26 @@ function flashCell(elCell, i, j) {
 
 function placeFlag(elCell, i, j) {
     if (!gGame.isOn) return
+    if (gBoard[i][j].isShown) return
     if (!gBoard[i][j].isMarked) {
         gBoard[i][j].isMarked = true
         gGame.markedCount++
-        console.log(gGame.markedCount)
         elCell.innerText = FLAG
+        renderMinesCount(true)
         checkVictory()
     } else {
         gBoard[i][j].isMarked = false
         gGame.markedCount--
         elCell.innerText = EMPTY
+        renderMinesCount(true)
     }
 }
 
 function placeMines(cells) {
     for (var i = gLevel.MINES; i > 0; i--) {
-        const cell = cells[getRandomInt(0, cells.length)]
-        cells.pop(cell)
+        var cellIdx = getRandomInt(0, cells.length)
+        const cell = cells[cellIdx]
+        cells.splice(cellIdx, 1)
 
         gBoard[cell.i][cell.j].isMine = true
         gMines.push({ i: cell.i, j: cell.j })
@@ -237,17 +242,19 @@ function placeMines(cells) {
 }
 
 function checkVictory() {
-    console.log('gGame.shownCount:', gGame.shownCount)
-    console.log('gGame.markedCount:', gGame.markedCount)
-    console.log('gLevel.MINES:', gLevel.MINES)
     if ((gGame.shownCount + gGame.markedCount === gLevel.SIZE ** 2) && gGame.markedCount === gLevel.MINES) {
         renderGameIndicator(GAME_MODE_WIN)
-        gameOver()
+        gameOver(true)
     }
 }
 
-function gameOver() {
+function gameOver(isWin) {
     gGame.isOn = false
+    if (!isWin) {
+        gGame.lives = 0
+        renderLives()
+    }
+    clearInterval(gGameTimerInterval)
 }
 
 function resetGameStats() {
@@ -264,11 +271,15 @@ function resetGameStats() {
     }
     gMines = []
     gMegaHintEdges = []
+
+    clearInterval(gGameTimerInterval)
 }
 
 function onToggleManualMode() {
+    if (gGame.shownCount) return
     gGame.isManualMode = gGame.isManualMode ? false : true
     if (gGame.isManualMode) gLevel.MINES = 0
+    renderMinesCount()
     console.log('gGame.isManualMode:', gGame.isManualMode)
 }
 
@@ -279,6 +290,8 @@ function onChooseLevel(size, mines) {
 }
 
 function onHintClicked(elHint) {
+    // if (!gGame.shownCount) return
+    if (!gGame.isOn) return
     if (elHint.style.cursor === 'not allowed') return
     if (gGame.isHintMode) return
     gGame.isHintMode = true
@@ -322,7 +335,6 @@ function onExterminatorClick() { // It should be noted that after conversation w
         gLevel.MINES--
         setMinesNegsCount(gBoard)
         count++
-        console.log('gMines:', gMines)
     }
 }
 
@@ -390,13 +402,36 @@ function renderAll() {
     renderScore()
     renderGameIndicator(GAME_MODE_NORMAL)
     renderBoard(gBoard, '.board-container')
+    renderMinesCount()
+    resetGameTimer()
 }
 
 function updateScore() {
     if (gGame.shownCount > +localStorage.getItem("score")) {
         localStorage.setItem("score", gGame.shownCount)
-        renderScore()
     }
+    renderScore()
+}
+
+function renderMinesCount(isFlagPlacement) {
+    const elMines = document.querySelector('.mines-count')
+    if (isFlagPlacement) elMines.innerText = (gLevel.MINES - gGame.markedCount)
+    else elMines.innerText = gLevel.MINES
+}
+
+function startTimer() {
+    const startTime = Date.now()
+
+    gGameTimerInterval = setInterval(() => {
+        gGame.secsPassed = (Date.now() - startTime) / 1000
+        document.querySelector('.timer').innerText = gGame.secsPassed.toFixed(3)
+    }, 1)
+}
+
+function resetGameTimer() {
+    gGame.secsPassed = 0
+    var elTimer = document.querySelector('.timer')
+    elTimer.innerText = '0.000'
 }
 
 function saveMemento(item) {
